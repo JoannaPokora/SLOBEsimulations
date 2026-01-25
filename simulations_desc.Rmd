@@ -1,0 +1,26 @@
+---
+title: "Logistic SLOBE simulations"
+output: html_document
+---
+
+Let the number of observations be $n=100$. We consider two scenarios:
+
+* $p=100$ variables with 5, 10, 15 or 20 true signals,
+* $p=500$ variables and 10, 20, ..., 60 true signals.
+
+In each case, we simulate explanatory variables from the multivariate normal distribution $N(0,\Sigma)$, where $\Sigma$ is a Toeplitz matrix
+
+$$\begin{pmatrix} 1 & \rho & \cdots & \rho^{p-1} \\ \vdots & \ddots & \ddots & \vdots \\ \rho^{p-1} & \rho^{p-2} & \cdots & 1 \end{pmatrix},$$
+
+where $\rho\in\{0,0.5,0.9\}$.
+
+To examine the model performance with different signal strengths, we set their values to $c\sqrt{2\log(p)}$ for $c\in\{1,2,3,4\}$, which corresponds to the Bonferroni multiple testing method, controlling the family wise error rate (FWER).
+
+Based on the obtained design matrices and coefficients vectors, we calculate the probabilities of success
+
+$$y=\frac{1}{1+\exp(-X\beta)}.$$
+
+Using these probabilities, we simulate the response variable from the binomial distribution.
+
+Eventually, we randomly select the missing values positions, which corresponds to the MCAR missing values type.
+
