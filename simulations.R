@@ -149,10 +149,6 @@ trained_models <- lapply(1:nrow(simulations), function(row) {
 
 stopCluster(cl)
 
-saveRDS(trained_models, "results/trained_models.RDS")
-
-trained_models <- readRDS("results/trained_models.RDS")
-
 res_df <- dplyr::bind_rows(
   lapply(trained_models, function(case) {
     dplyr::bind_rows(
