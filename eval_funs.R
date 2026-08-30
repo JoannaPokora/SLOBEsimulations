@@ -1,4 +1,3 @@
-
 calc_power <- function(beta, beta_est) {
   tp <- sum(beta[beta_est != 0] != 0)
   fn <- sum(beta[beta_est == 0] != 0)
@@ -18,7 +17,7 @@ calc_mse <- function(beta, beta_est) {
 }
 
 calc_msp <- function(beta, beta_est, X) {
-  if (is.null(beta_est)) {
+  if (is.null(beta_est) || length(beta_est) != length(beta)) {
     return(NA)
   }
   

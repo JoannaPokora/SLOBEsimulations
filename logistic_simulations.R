@@ -10,13 +10,13 @@ source("eval_funs.R")
 rep_num <- 200
 
 signals_num_lst <- list(c(3, 6, 10, 12, 15),
-                        c(10, 20, 30, 40, 50, 60))
+                        c(50, 100, 120, 150))
 
 settings <- list(
   n = 100,
   p = c(100, 300),
   signals_num = unique(unlist(signals_num_lst)),
-  corr = c(0, 0.2, 0.6),
+  corr = c(0, 0.5),
   signals_strength = c(7, 10, 15)
 )
 
@@ -63,32 +63,37 @@ coefs <- lapply(1:nrow(simulations), function(row) {
     coef_slobe <- slobe(train$X, train$y, family = "binomial")$coefficients[-1]
     
     # cvLASSO
-    coef_cvLASSO <- tryCatch({
+    tryCatch({
       obj_cvLASSO <- cv.glmnet(train$X, train$y, family = "binomial",
+                               type.measure = "auc",
                                standardize=FALSE, intercept=FALSE)
-      as.numeric(coef(obj_cvLASSO, s="lambda.min"))[-1]
+      scale_cvLASSO <- obj_cvLASSO$lambda.min
+      coef_cvLASSO <- as.numeric(coef(obj_cvLASSO, s="lambda.min"))[-1]
       },
       error = function(e) list("error")
     )
 
     # cvSLOPE
-    coef_SLOPE <- tryCatch({
+    tryCatch({
       tune <- trainSLOPE(train$X, train$y, family = "binomial", q = 0.05,
-                         lambda = "bh", scale = "none", measure = "mse",
+                         lambda = "bh", scale = "none", measure = "auc",
                          intercept=FALSE)
-      tune$model$coefficients[,,tune$model$sigma == tune$optima$sigma]
+      scale_SLOPE <- tune$optima$sigma
+      coef_SLOPE <-
+        tune$model$coefficients[,,tune$model$sigma == tune$optima$sigma]
     },
     error = function(e) list("error")
     )
     
     # ssl
-    coef_ssl <- tryCatch({
+    tryCatch({
       f1 <- glmNet(train$X, train$y, family = "binomial", ncv = 1) 
       ps <- f1$prior.scale; ps
+      scale_sll <- ps
       ss <- c(ps, 0.5)
       ssl_res <- bmlasso(train$X, train$y, family = "binomial",
                          ss = ss, alpha = 1)
-      as.numeric(ssl_res$beta)
+      coef_ssl <- as.numeric(ssl_res$beta)
     },
     error = function(e) list("error")
     )
@@ -105,23 +110,6 @@ coefs <- lapply(1:nrow(simulations), function(row) {
 })
 
 stopCluster(cl)
-
-saveRDS(coefs, "results/coefs.RDS")
-
-any(unlist(lapply(coefs, function(x) {
-  lapply(x, function(y) {
-    length(y$SLOBE[[1]]) == 1
-  })
-})))
-
-coefs <- lapply(coefs, function(i){
-  lapply(i, function(j){
-    j$coef_SSL <- as.numeric(j$coef_SSL)
-    j[1:6]
-  })
-})
-
-coefs <- readRDS("results/coefs.RDS")
 
 res_df <- dplyr::bind_rows(
   lapply(coefs, function(case) {
@@ -183,13 +171,15 @@ strength_lab <- function(sign_str) {
   paste0("strength == ", sign_str)
 }
 
-create_plot <- function(res_df, type) {
-  ggplot(res_df, aes(x = signals_num, y = .data[[type]], color = fun)) +
+create_plot <- function(res_df, type, filt_p = 100) {
+  res_df <- filter(res_df, p == filt_p)
+  
+  plt <- ggplot(res_df, aes(x = signals_num, y = .data[[type]], color = fun)) +
     geom_line() +
     geom_point() +
     facet_wrap(
       ~ p + corr + signals_strength,
-      nrow = 2, scales = "free_x",
+      nrow = 1, scales = "free_x",
       labeller = labeller(
         p = as_labeller(p_lab, label_parsed),
         corr = as_labeller(corr_lab, label_parsed),
@@ -207,6 +197,13 @@ create_plot <- function(res_df, type) {
         margin = margin(t = 1, b = 2)
       )
     )
+  
+  if (type == "FDR") {
+    plt +
+      geom_hline(yintercept = 0.05, linetype = "dashed")
+  } else {
+    plt
+  }
 }
 
 create_plot(res_df, "power")
@@ -214,3 +211,7 @@ create_plot(res_df, "FDR")
 create_plot(res_df, "MSE")
 create_plot(res_df, "MSP")
 
+create_plot(res_df, "power", filt_p = 300)
+create_plot(res_df, "FDR", filt_p = 300)
+create_plot(res_df, "MSE", filt_p = 300)
+create_plot(res_df, "MSP", filt_p = 300)

@@ -151,12 +151,6 @@ stopCluster(cl)
 
 saveRDS(trained_models, "results/trained_models.RDS")
 
-any(unlist(lapply(trained_models, function(x) {
-  lapply(x, function(y) {
-    y$ABSLOPE[[1]] == "error"
-  })
-})))
-
 trained_models <- readRDS("results/trained_models.RDS")
 
 res_df <- dplyr::bind_rows(
@@ -245,11 +239,12 @@ strength_lab <- function(sign_str) {
   paste(ifelse(sign_str == 1.3, "weak", "strong"), "signals")
 }
 
-create_plot <- function(res_df, type, filter_fun = NULL) {
-  if (!is.null(filter_fun)) {
-    res_df <- filter(res_df, fun != filter_fun)
+create_plot <- function(res_df, type, filt_fun = NULL) {
+  if (!is.null(filt_fun)) {
+    res_df <- filter(res_df, fun != filt_fun)
   }
-  ggplot(res_df, aes(x = signals_num, y = .data[[type]], color = fun)) +
+  
+  plt <- ggplot(res_df, aes(x = signals_num, y = .data[[type]], color = fun)) +
     geom_line() +
     geom_point() +
     facet_wrap(
@@ -268,20 +263,22 @@ create_plot <- function(res_df, type, filter_fun = NULL) {
       strip.background = element_blank(),
       strip.text = element_text(
         colour = "black",
-        size = 9,
         margin = margin(t = 1, b = 2)
-      )
+      ),
+      text = element_text(size = 12)
     )
+  
+  if (type == "FDR") {
+    plt +
+      geom_hline(yintercept = 0.05, linetype = "dashed")
+  } else {
+    plt
+  }
 }
 
 create_plot(res_df, "time")
+create_plot(res_df, "time", "ABSLOPE")
 create_plot(res_df, "power")
 create_plot(res_df, "FDR")
 create_plot(res_df, "MSE")
 create_plot(res_df, "MSP")
-
-create_plot(res_df, "time", "ABSLOPE")
-create_plot(res_df, "power", "ABSLOPE")
-create_plot(res_df, "FDR", "ABSLOPE")
-create_plot(res_df, "MSE", "ABSLOPE")
-create_plot(res_df, "MSP", "ABSLOPE")
